@@ -17,7 +17,7 @@ export default function AdminComisionesPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {comisiones.map((comision) => {
+        {comisiones.map((comision, index) => {
           const profesor = usuarios.find(
             (u) => u.legajo === comision.profesorLegajo && u.rol === "profesor"
           );
@@ -27,13 +27,22 @@ export default function AdminComisionesPage() {
               href={`/admin/comisiones/${comision.id}`}
               className="block group"
             >
-              <Card className="h-full transition-all duration-200 hover:shadow-md hover:border-indigo-300 cursor-pointer group-hover:-translate-y-0.5">
+              <Card
+                className="h-full transition-all duration-200 hover:shadow-lg cursor-pointer group-hover:-translate-y-1 animate-card-enter"
+                style={{
+                  animationDelay: `${index * 0.08}s`,
+                  borderTop: "3px solid #B59A1B",
+                }}
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <Badge variant="secondary" className="text-xs">
                       {comision.codigo}
                     </Badge>
-                    <Badge className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+                    <Badge
+                      className="text-xs border-0 text-white"
+                      style={{ backgroundColor: "#003087" }}
+                    >
                       {comision.año}
                     </Badge>
                   </div>

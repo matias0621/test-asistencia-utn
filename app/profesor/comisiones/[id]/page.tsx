@@ -46,6 +46,7 @@ export default function ProfesorComisionDetallePage({
   const [asistencias, setAsistencias] = useState<Record<string, boolean>>({});
   const [guardado, setGuardado] = useState(false);
   const [historialFechas, setHistorialFechas] = useState<string[]>([]);
+  const [animatingDni, setAnimatingDni] = useState<string | null>(null);
 
   useEffect(() => {
     if (!comision) return;
@@ -68,6 +69,7 @@ export default function ProfesorComisionDetallePage({
   function toggleAsistencia(dni: string) {
     setAsistencias((prev) => ({ ...prev, [dni]: !prev[dni] }));
     setGuardado(false);
+    setAnimatingDni(dni);
   }
 
   function handleGuardar() {
@@ -114,7 +116,7 @@ export default function ProfesorComisionDetallePage({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-blue-600" />
+              <CalendarDays className="h-4 w-4" style={{ color: "#B59A1B" }} />
               Fecha de asistencia
             </CardTitle>
           </CardHeader>
@@ -133,8 +135,11 @@ export default function ProfesorComisionDetallePage({
               Guardar asistencia
             </Button>
             {guardado && (
-              <p className="flex items-center gap-1.5 text-sm text-green-600">
-                <CheckCircle2 className="h-4 w-4" />
+              <p
+                key="guardado-msg"
+                className="flex items-center gap-1.5 text-sm text-green-600"
+              >
+                <CheckCircle2 className="h-4 w-4 animate-success-pop" />
                 Guardado correctamente
               </p>
             )}
@@ -186,9 +191,14 @@ export default function ProfesorComisionDetallePage({
                     onClick={() => setFechaSeleccionada(fecha)}
                     className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
                       fecha === fechaSeleccionada
-                        ? "bg-blue-600 text-white"
+                        ? "text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
+                    style={
+                      fecha === fechaSeleccionada
+                        ? { backgroundColor: "#003087" }
+                        : undefined
+                    }
                   >
                     {new Date(fecha + "T12:00:00").toLocaleDateString("es-AR", {
                       day: "2-digit",
@@ -232,8 +242,11 @@ export default function ProfesorComisionDetallePage({
                     key={alumno.dni}
                     className={`cursor-pointer transition-colors ${
                       presente ? "bg-green-50 hover:bg-green-100" : "hover:bg-gray-50"
-                    }`}
+                    } ${animatingDni === alumno.dni ? "animate-row-flash" : ""}`}
                     onClick={() => toggleAsistencia(alumno.dni)}
+                    onAnimationEnd={() => {
+                      if (animatingDni === alumno.dni) setAnimatingDni(null);
+                    }}
                   >
                     <TableCell className="text-center">
                       <Checkbox
