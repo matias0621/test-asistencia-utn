@@ -28,8 +28,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, CalendarDays, BarChart3, Settings } from "lucide-react";
+import { ArrowLeft, CalendarDays, BarChart3, Settings, Search, X } from "lucide-react";
 import Link from "next/link";
+import { Dialog } from "@base-ui/react/dialog";
+import type { Alumno } from "@/data/db";
 
 export default function AdminComisionDetallePage({
   params,
@@ -52,6 +54,8 @@ export default function AdminComisionDetallePage({
   const [fechaVista, setFechaVista] = useState<string | null>(
     fechas.length > 0 ? fechas[fechas.length - 1] : null
   );
+  const [busqueda, setBusqueda] = useState("");
+  const [alumnoDetalle, setAlumnoDetalle] = useState<Alumno | null>(null);
 
   if (!comision) {
     return (
@@ -236,89 +240,173 @@ export default function AdminComisionDetallePage({
       {/* Tabla */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Lista de alumnos</CardTitle>
-          <CardDescription>
-            {fechaVista
-              ? `Asistencia del ${new Date(fechaVista + "T12:00:00").toLocaleDateString("es-AR")}`
-              : "Seleccioná una fecha para ver el detalle"}
-            {fechas.length > 0 && " · La columna % muestra el promedio general de asistencia"}
-          </CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base">Lista de alumnos</CardTitle>
+              <CardDescription>
+                {fechaVista
+                  ? `Asistencia del ${new Date(fechaVista + "T12:00:00").toLocaleDateString("es-AR")}`
+                  : "Seleccioná una fecha para ver el detalle"}
+              </CardDescription>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o DNI..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-8 text-sm outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring"
+              />
+              {busqueda && (
+                <button
+                  onClick={() => setBusqueda("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
+          {/* Detalle modal */}
+          <Dialog.Root
+            open={alumnoDetalle !== null}
+            onOpenChange={(open) => { if (!open) setAlumnoDetalle(null); }}
+            modal
+          >
+            <Dialog.Portal>
+              <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50" />
+              <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-6 shadow-xl">
+                {alumnoDetalle && (() => {
+                  const faltas = faltasPorAlumno[alumnoDetalle.dni] ?? 0;
+                  const pct = clasesRegistradas > 0 ? getPorcentajeAlumno(alumnoDetalle.dni) : null;
+                  const presente = fechaVista ? asistenciasDia[alumnoDetalle.dni] === true : null;
+                  return (
+                    <>
+                      <Dialog.Title className="text-base font-semibold text-gray-900 mb-0.5">
+                        {alumnoDetalle.apellido}, {alumnoDetalle.nombre}
+                      </Dialog.Title>
+                      <Dialog.Description className="text-sm text-gray-500 mb-5">
+                        DNI {alumnoDetalle.dni} · {alumnoDetalle.email}
+                      </Dialog.Description>
+
+                      <div className="space-y-3">
+                        {presente !== null && (
+                          <div className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3">
+                            <span className="text-sm text-gray-600">Estado del día</span>
+                            <Badge
+                              className={presente
+                                ? "bg-green-100 text-green-700 hover:bg-green-100"
+                                : "bg-red-50 text-red-600 hover:bg-red-50"}
+                              variant="secondary"
+                            >
+                              {presente ? "Presente" : "Ausente"}
+                            </Badge>
+                          </div>
+                        )}
+                        {pct !== null && (
+                          <div className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3">
+                            <span className="text-sm text-gray-600">% Asistencia general</span>
+                            <span className={`text-sm font-semibold ${pct >= 75 ? "text-green-600" : pct >= 50 ? "text-yellow-600" : "text-red-500"}`}>
+                              {pct}%
+                            </span>
+                          </div>
+                        )}
+                        {comisionConfig && (
+                          <div className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3">
+                            <span className="text-sm text-gray-600">Faltas acumuladas</span>
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="text-sm font-medium text-gray-800">
+                                {faltas} / {comisionConfig.faltasPermitidas}
+                              </span>
+                              {getAusenciaBadge(faltas)}
+                            </div>
+                          </div>
+                        )}
+                        {comisionConfig && (
+                          <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm space-y-1">
+                            <p className="text-gray-500">
+                              Le quedan <span className="font-semibold text-gray-900">{Math.max(0, comisionConfig.faltasPermitidas - faltas)}</span> faltas antes de quedar irregular.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-5">
+                        <Dialog.Close
+                          render={<Button variant="outline" className="w-full">Cerrar</Button>}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+              </Dialog.Popup>
+            </Dialog.Portal>
+          </Dialog.Root>
+
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
                 <TableHead>Apellido y Nombre</TableHead>
                 <TableHead className="hidden sm:table-cell">DNI</TableHead>
-                {fechaVista && (
-                  <TableHead className="w-28 text-center">
-                    Estado del día
-                  </TableHead>
-                )}
-                {fechas.length > 0 && (
-                  <TableHead className="w-24 text-center">% Asistencia</TableHead>
-                )}
-                {comisionConfig && (
-                  <TableHead className="w-36 text-center">Faltas acum.</TableHead>
-                )}
+                <TableHead className="hidden md:table-cell w-36">Última asistencia</TableHead>
+                <TableHead className="w-28 text-center">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {comision.alumnos.map((alumno) => {
-                const presente = fechaVista
-                  ? asistenciasDia[alumno.dni] === true
-                  : null;
-                const pct = fechas.length > 0 ? getPorcentajeAlumno(alumno.dni) : null;
-                return (
-                  <TableRow key={alumno.dni}>
+              {comision.alumnos
+                .filter((alumno) => {
+                  const q = busqueda.toLowerCase().trim();
+                  if (!q) return true;
+                  return (
+                    alumno.nombre.toLowerCase().includes(q) ||
+                    alumno.apellido.toLowerCase().includes(q) ||
+                    alumno.dni.includes(q)
+                  );
+                })
+                .map((alumno) => (
+                  <TableRow key={alumno.dni} className="hover:bg-gray-50">
                     <TableCell className="font-medium">
                       {alumno.apellido}, {alumno.nombre}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-gray-500 text-sm">
                       {alumno.dni}
                     </TableCell>
-                    {fechaVista && (
-                      <TableCell className="text-center">
-                        <Badge
-                          className={
-                            presente
-                              ? "bg-green-100 text-green-700 hover:bg-green-100"
-                              : "bg-red-50 text-red-600 hover:bg-red-50"
-                          }
-                          variant="secondary"
-                        >
-                          {presente ? "Presente" : "Ausente"}
-                        </Badge>
-                      </TableCell>
-                    )}
-                    {pct !== null && (
-                      <TableCell className="text-center">
-                        <span
-                          className={`text-sm font-semibold ${
-                            pct >= 75
-                              ? "text-green-600"
-                              : pct >= 50
-                              ? "text-yellow-600"
-                              : "text-red-500"
-                          }`}
-                        >
-                          {pct}%
-                        </span>
-                      </TableCell>
-                    )}
-                    {comisionConfig && (
-                      <TableCell className="text-center">
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-xs text-gray-600">
-                            {faltasPorAlumno[alumno.dni] ?? 0} / {comisionConfig.faltasPermitidas}
-                          </span>
-                          {getAusenciaBadge(faltasPorAlumno[alumno.dni] ?? 0)}
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell className="hidden md:table-cell text-sm text-gray-500">
+                      {(() => {
+                        const ultima = fechas.filter((f) => historialCompleto[f]?.[alumno.dni] === true).at(-1);
+                        if (!ultima) return <span className="text-gray-400">Sin asistencias</span>;
+                        return new Date(ultima + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+                      })()}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAlumnoDetalle(alumno)}
+                      >
+                        Ver detalles
+                      </Button>
+                    </TableCell>
                   </TableRow>
+                ))}
+              {comision.alumnos.filter((alumno) => {
+                const q = busqueda.toLowerCase().trim();
+                if (!q) return false;
+                return !(
+                  alumno.nombre.toLowerCase().includes(q) ||
+                  alumno.apellido.toLowerCase().includes(q) ||
+                  alumno.dni.includes(q)
                 );
-              })}
+              }).length === comision.alumnos.length && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-sm text-gray-400 py-8">
+                    No se encontraron alumnos con ese criterio.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
