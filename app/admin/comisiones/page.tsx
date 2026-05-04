@@ -1,12 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { comisiones, usuarios } from "@/data/db";
+import { getComisionConfig, type ComisionConfig } from "@/lib/asistencia";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, Users, User } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminComisionesPage() {
+  const [configs, setConfigs] = useState<Record<string, ComisionConfig | null>>({});
+
+  useEffect(() => {
+    const loaded: Record<string, ComisionConfig | null> = {};
+    for (const c of comisiones) {
+      loaded[c.id] = getComisionConfig(c.id);
+    }
+    setConfigs(loaded);
+  }, []);
   return (
     <div className="space-y-6">
       <div>
@@ -21,6 +32,7 @@ export default function AdminComisionesPage() {
           const profesor = usuarios.find(
             (u) => u.legajo === comision.profesorLegajo && u.rol === "profesor"
           );
+          const config = configs[comision.id] ?? null;
           return (
             <Link
               key={comision.id}
@@ -68,6 +80,17 @@ export default function AdminComisionesPage() {
                     <div className="flex items-center gap-2 text-sm text-gray-400">
                       <User className="h-4 w-4" />
                       <span>Legajo: {comision.profesorLegajo}</span>
+                    </div>
+                  )}
+                  {config ? (
+                    <div className="flex items-center gap-2 text-xs text-indigo-600 font-medium">
+                      <BookOpen className="h-3.5 w-3.5" />
+                      <span className="capitalize">{config.modalidad} · {config.clasesSemanales} clase{config.clasesSemanales > 1 ? "s" : ""}/sem · máx. {config.faltasPermitidas} faltas</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <BookOpen className="h-3.5 w-3.5" />
+                      <span>Régimen sin configurar</span>
                     </div>
                   )}
                 </CardContent>
